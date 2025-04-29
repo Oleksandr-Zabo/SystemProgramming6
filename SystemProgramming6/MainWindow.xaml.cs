@@ -9,6 +9,7 @@ public partial class MainWindow : Window
 {
     private static Mutex _mutex = new Mutex();
     private static int[] _dataArray = Enumerable.Range(1, 10).ToArray();
+    private static int _maxValue;
     private static Random _random = new Random();
     private static TextBlock _outputText;
 
@@ -20,22 +21,17 @@ public partial class MainWindow : Window
 
     private void StartThreads_Click(object sender, RoutedEventArgs e)
     {
-        new Thread(WriteArray).Start();
-        new Thread(ModifyArray).Start();
-        new Thread(FindMaxValue).Start();
-    }
+        Thread firstThread = new Thread(ModifyArray);
+        Thread secondThread = new Thread(FindMaxValue);
 
-    private void WriteArray()
-    {
-        _mutex.WaitOne();
-        string array = "Array";
-        foreach (var el in _dataArray)
-        {
-            array += " " + el;
-        }
-        UpdateUi(array);
-        Thread.Sleep(500);
-        _mutex.ReleaseMutex();
+        firstThread.Start();
+        secondThread.Start();
+
+        // Wait for both threads to finish
+        firstThread.Join();
+        secondThread.Join();
+
+        Dispatcher.Invoke(() => MainThread_UpdateUI());
     }
 
     private void ModifyArray()
@@ -45,8 +41,7 @@ public partial class MainWindow : Window
         {
             int randomValue = _random.Next(1, 10);
             _dataArray[i] += randomValue;
-            UpdateUi($"Modified: [{i}] - {_dataArray[i]}");
-            Thread.Sleep(500);
+            Thread.Sleep(200);
         }
         _mutex.ReleaseMutex();
     }
@@ -54,16 +49,14 @@ public partial class MainWindow : Window
     private void FindMaxValue()
     {
         _mutex.WaitOne();
-        int maxValue = _dataArray.Max();
-        UpdateUi($"Max Value: {maxValue}");
+        _maxValue = _dataArray.Max();
+        Thread.Sleep(200);
         _mutex.ReleaseMutex();
     }
 
-    private void UpdateUi(string text)
+    private void MainThread_UpdateUI()
     {
-        Dispatcher.Invoke(() =>
-        {
-            _outputText.Text += text + "\n";
-        });
+        _outputText.Text += $"Modified Array: {string.Join(", ", _dataArray)}\n";
+        _outputText.Text += $"Max Value: {_maxValue}\n";
     }
 }
