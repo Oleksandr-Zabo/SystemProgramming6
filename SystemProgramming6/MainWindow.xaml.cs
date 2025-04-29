@@ -1,53 +1,48 @@
-﻿using System.Text;
-using System.Windows;
+﻿using System.Windows;
 using System.Windows.Controls;
 
 namespace SystemProgramming6;
 
 
 public partial class MainWindow : Window
-{private static Mutex mutex = new Mutex();
-    private static TextBlock outputText;
+{
+    private static Semaphore _semaphore = new Semaphore(3, 3); // Allows 3 threads at a time
+    private static Random _random = new Random();
+    private static TextBlock? _outputText;
 
     public MainWindow()
     {
         InitializeComponent();
-        outputText = OutputText;
+        _outputText = OutputText;
     }
 
     private void StartThreads_Click(object sender, RoutedEventArgs e)
     {
-        new Thread(ShowAscendingNumbers).Start();
-        new Thread(ShowDescendingNumbers).Start();
-    }
-
-    private void ShowAscendingNumbers()
-    {
-        mutex.WaitOne();
-        for (int i = 0; i <= 20; i++)
+        for (int i = 0; i < 10; i++)
         {
-            UpdateUI($"Ascending: {i}");
-            Thread.Sleep(500);
+            new Thread(GenerateRandomNumbers).Start(i);
         }
-        mutex.ReleaseMutex();
     }
 
-    private void ShowDescendingNumbers()
+    private void GenerateRandomNumbers(object? threadId)
     {
-        mutex.WaitOne();
-        for (int i = 10; i >= 0; i--)
-        {
-            UpdateUI($"Descending: {i}");
-            Thread.Sleep(500);
-        }
-        mutex.ReleaseMutex();
+        _semaphore.WaitOne();
+        UpdateUi($"Thread {threadId} started.");
+
+        int[] randomNumbers = Enumerable.Range(0, 5).Select(_ => _random.Next(1, 100)).ToArray();
+        UpdateUi($"Thread {threadId}: {string.Join(", ", randomNumbers)}");
+
+        Thread.Sleep(2000); // Simulating processing time
+        UpdateUi($"Thread {threadId} finished.");
+
+        _semaphore.Release();
     }
 
-    private void UpdateUI(string text)
+    private void UpdateUi(string text)
     {
         Dispatcher.Invoke(() =>
         {
-            outputText.Text += text + "\n";
+            if (_outputText != null) _outputText.Text += text + "\n";
         });
     }
 }
